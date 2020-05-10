@@ -3,5 +3,5 @@ env/*
 .vscode/*
 data/*
 charts/*
-analysis/__pycache__/*
-Project3_PER.pptx
+functions/__pycache__/*
+Project4_PER.pptx
