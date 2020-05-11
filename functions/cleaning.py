@@ -90,8 +90,8 @@ def pipe_2015(data_2015, data_2016):
     df = drop_extra_features(df, data_2016)
     return df
 
-def missing_data(data):
-    """ Function to discard all samples which do not have data for feature targets.
+def handle_targets(data):
+    """ Function to discard all no values or outliers for feature targets.
     -----------
     Parameters:
     data: DataFrame
@@ -100,10 +100,15 @@ def missing_data(data):
     Return:
         DataFrame
     """
+    # drop missing values
     idx_to_keep = data[['TotalGHGEmissions', 'SiteEnergyUse(kBtu)']].dropna().index
     print("{} buildings will be discarded due to missing data for target features.".format(data.shape[0]-idx_to_keep.size))
     df = data.loc[idx_to_keep]
-    return df
+    # drop outliers
+    mask = (df['TotalGHGEmissions']==0)|(df['SiteEnergyUse(kBtu)']==0)
+    idx_to_del = df[mask].index
+    print("{} outliers will be dropped".format(len(idx_to_del)))
+    return df.drop(index=idx_to_del)
 
 def handle_duplicates(data):
     """ Function to check if there are some duplicates in the dataset.
@@ -143,7 +148,7 @@ def handle_outliers(data):
     idx = data[data['Outlier'].notna()].index
     print("{} buildings will be discarded since considered as outliers.".format(idx.size))
     df = data.drop(index=idx)
-    return df
+    return df.drop(columns='Outlier')
 
 def drop_housing(data):
     """ Function to discard the buildings whose the primary property type is housing.
@@ -219,7 +224,7 @@ def pipe_cleaning(data):
     Return:
         DataFrame
     """
-    df = missing_data(data)
+    df = handle_targets(data)
     df = handle_duplicates(df)
     df = handle_outliers(df)
     df = drop_housing(df)
