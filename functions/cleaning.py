@@ -92,6 +92,7 @@ def pipe_2015(data_2015, data_2016):
 
 def handle_targets(data):
     """ Function to discard all no values or outliers for feature targets.
+    It also corrects weather normalized outliers.
     -----------
     Parameters:
     data: DataFrame
@@ -108,6 +109,11 @@ def handle_targets(data):
     mask = (df['TotalGHGEmissions']==0)|(df['SiteEnergyUse(kBtu)']==0)
     idx_to_del = df[mask].index
     print("{} outliers will be dropped".format(len(idx_to_del)))
+    # correct data where SiteEnergyUseWN(kBtu)=0
+    wn_factor = (df['SiteEnergyUseWN(kBtu)']/df['SiteEnergyUse(kBtu)']).mean()
+    mask = df['SiteEnergyUseWN(kBtu)']==0
+    idx = df[mask].index
+    df.loc[idx, 'SiteEnergyUseWN(kBtu)'] = df.loc[idx, 'SiteEnergyUse(kBtu)']*wn_factor
     return df.drop(index=idx_to_del)
 
 def handle_duplicates(data):
@@ -188,7 +194,7 @@ def energy_conversion(data):
     return df
         
 def conso_outliers(data):
-    """ Function to discard obvious outliers for the features linked to energy consumption,
+    """ Function to discard the obvious outliers for the features linked to the energy consumption,
     no matter the source of energy.
     -----------
     Parameters:
@@ -214,12 +220,14 @@ def conso_outliers(data):
     df = data.drop(index=idx_to_del)
     return df
 
-def pipe_cleaning(data):
+def pipe_cleaning(data, conso_del=False):
     """Pipeline to clean the dataset.
     -----------
     Parameters:
     data: DataFrame
-        the pandas object holding data   
+        the pandas object holding data 
+    conso_del: bool, default False
+        to discard or not the obvious outliers for the features linked to the energy consumption      
     -----------
     Return:
         DataFrame
@@ -229,5 +237,6 @@ def pipe_cleaning(data):
     df = handle_outliers(df)
     df = drop_housing(df)
     df = energy_conversion(df)
-    df = conso_outliers(df)
+    if conso_del:
+        df = conso_outliers(df)
     return df
