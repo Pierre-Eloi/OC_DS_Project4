@@ -130,7 +130,7 @@ def handle_duplicates(data):
     # check there are no missing values for the primary key OSEBuildingID.
     n_na = data[data['OSEBuildingID'].isna()].size
     if n_na != 0:
-        print("OSEBuildingID is not a valid primary key, please use another feature")ss
+        print("OSEBuildingID is not a valid primary key, please use another feature")
         df = data
     else:
         n_dup = data.shape[0] - data['OSEBuildingID'].unique().size
