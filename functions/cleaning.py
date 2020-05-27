@@ -2,7 +2,7 @@
 # coding: utf-8
 
 """ This module gathers all functions required for
-selecting and cleaning data. 
+selecting and cleaning data.
 """
 
 import numpy as np
@@ -61,7 +61,7 @@ def drop_extra_features(data_2015, data_2016):
     data_2015: DataFrame
         the pandas object holding the 2015 data
     data_2016: DataFrame
-        the pandas object holding the 2016 data    
+        the pandas object holding the 2016 data
     -----------
     Return:
         DataFrame
@@ -80,7 +80,7 @@ def pipe_2015(data_2015, data_2016):
     data_2015: DataFrame
         the pandas object holding the 2015 data
     data_2016: DataFrame
-        the pandas object holding the 2016 data    
+        the pandas object holding the 2016 data
     -----------
     Return:
         DataFrame
@@ -96,7 +96,7 @@ def handle_targets(data):
     -----------
     Parameters:
     data: DataFrame
-        the pandas object holding data   
+        the pandas object holding data
     -----------
     Return:
         DataFrame
@@ -122,7 +122,7 @@ def handle_duplicates(data):
     -----------
     Parameters:
     data: DataFrame
-        the pandas object holding data   
+        the pandas object holding data
     -----------
     Return:
         DataFrame
@@ -130,7 +130,7 @@ def handle_duplicates(data):
     # check there are no missing values for the primary key OSEBuildingID.
     n_na = data[data['OSEBuildingID'].isna()].size
     if n_na != 0:
-        print("OSEBuildingID is not a valid primary key, please use another feature")
+        print("OSEBuildingID is not a valid primary key, please use another feature")ss
         df = data
     else:
         n_dup = data.shape[0] - data['OSEBuildingID'].unique().size
@@ -146,7 +146,7 @@ def handle_outliers(data):
     -----------
     Parameters:
     data: DataFrame
-        the pandas object holding data   
+        the pandas object holding data
     -----------
     Return:
         DataFrame
@@ -167,7 +167,8 @@ def drop_housing(data):
         DataFrame
     """
     list_housing = ['Low-Rise Multifamily', 'Mid-Rise Multifamily', 'High-Rise Multifamily']
-    idx_to_del = data[data['PrimaryPropertyType'].isin(list_housing)].index
+    mask = (data['PrimaryPropertyType'].isin(list_housing))|(data['LargestPropertyUseType']=='Multifamily Housing')
+    idx_to_del = data[mask].index
     print("{} buildings dedicated mainly to housing will be discarded".format(len(idx_to_del)))
     df = data.drop(index=idx_to_del)
     return df
@@ -177,7 +178,7 @@ def energy_conversion(data):
     -----------
     Parameters:
     data: DataFrame
-        the pandas object holding data   
+        the pandas object holding data
     -----------
     Return:
         DataFrame
@@ -192,14 +193,14 @@ def energy_conversion(data):
     col_to_del = ['Electricity(kWh)', 'NaturalGas(therms)']
     df.drop(columns=col_to_del, inplace=True)
     return df
-        
+
 def conso_outliers(data):
     """ Function to discard the obvious outliers for the features linked to the energy consumption,
     no matter the source of energy.
     -----------
     Parameters:
     data: DataFrame
-        the pandas object holding data   
+        the pandas object holding data
     -----------
     Return:
         DataFrame
@@ -225,9 +226,9 @@ def pipe_cleaning(data, conso_del=False):
     -----------
     Parameters:
     data: DataFrame
-        the pandas object holding data 
+        the pandas object holding data
     conso_del: bool, default False
-        to discard or not the obvious outliers for the features linked to the energy consumption      
+        to discard or not the obvious outliers for the features linked to the energy consumption
     -----------
     Return:
         DataFrame
