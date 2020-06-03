@@ -33,7 +33,8 @@ def location_handling(data):
 
 def rename_features(data):
     """
-    Function to rename features from the 2015 dataset with the same names that the ones in the 2016 dataset
+    Function to rename features from the 2015 dataset with the same names
+    that the ones in the 2016 dataset
     -----------
     Parameters:
     data: DataFrame
@@ -55,7 +56,8 @@ def rename_features(data):
 
 def drop_extra_features(data_2015, data_2016):
     """
-    Function to drop all features from the 2015 dataset which are not included in the 2016 dataset
+    Function to drop all features from the 2015 dataset which are not included
+    in the 2016 dataset
     -----------
     Parameters:
     data_2015: DataFrame
@@ -103,7 +105,8 @@ def handle_targets(data):
     """
     # drop missing values
     idx_to_keep = data[['TotalGHGEmissions', 'SiteEnergyUse(kBtu)']].dropna().index
-    print("{} buildings will be discarded due to missing data for target features.".format(data.shape[0]-idx_to_keep.size))
+    print("{} buildings will be discarded due to missing data for \
+          target features.".format(data.shape[0]-idx_to_keep.size))
     df = data.loc[idx_to_keep]
     # drop outliers
     mask = (df['TotalGHGEmissions']==0)|(df['SiteEnergyUse(kBtu)']==0)
@@ -167,7 +170,8 @@ def drop_housing(data):
         DataFrame
     """
     list_housing = ['Low-Rise Multifamily', 'Mid-Rise Multifamily', 'High-Rise Multifamily']
-    mask = (data['PrimaryPropertyType'].isin(list_housing))|(data['LargestPropertyUseType']=='Multifamily Housing')
+    mask = (data['PrimaryPropertyType'].isin(list_housing))|\
+           (data['LargestPropertyUseType']=='Multifamily Housing')
     idx_to_del = data[mask].index
     print("{} buildings dedicated mainly to housing will be discarded".format(len(idx_to_del)))
     df = data.drop(index=idx_to_del)
@@ -195,7 +199,8 @@ def energy_conversion(data):
     return df
 
 def conso_outliers(data):
-    """ Function to discard the obvious outliers for the features linked to the energy consumption,
+    """ Function to discard the obvious outliers
+    for the features linked to the energy consumption,
     no matter the source of energy.
     -----------
     Parameters:
@@ -215,7 +220,9 @@ def conso_outliers(data):
     idx_to_del = data[mask==0].index
     df = data.drop(index=idx_to_del)
     # Each consumption must be inferior to the total consumption
-    mask = (data['SteamUse(kBtu)']>data['SiteEnergyUse(kBtu)'])|(data['Electricity(kBtu)']>data['SiteEnergyUse(kBtu)'])|(data['NaturalGas(kBtu)']>data['SiteEnergyUse(kBtu)'])
+    mask = (data['SteamUse(kBtu)']>data['SiteEnergyUse(kBtu)'])|\
+           (data['Electricity(kBtu)']>data['SiteEnergyUse(kBtu)'])|\
+           (data['NaturalGas(kBtu)']>data['SiteEnergyUse(kBtu)'])
     idx_to_del = data[mask].index
     print("{} buildings will be discarded due to anomalous consumptions".format(len(idx_to_del)))
     df = data.drop(index=idx_to_del)
