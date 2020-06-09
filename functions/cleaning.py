@@ -105,13 +105,13 @@ def handle_targets(data):
     """
     # drop missing values
     idx_to_keep = data[['TotalGHGEmissions', 'SiteEnergyUse(kBtu)']].dropna().index
-    print("{} buildings will be discarded due to missing data for \
-          target features.".format(data.shape[0]-idx_to_keep.size))
+    print("{} buildings have been discarded due to missing data for target features."\
+        .format(data.shape[0]-idx_to_keep.size))
     df = data.loc[idx_to_keep]
     # drop outliers
     mask = (df['TotalGHGEmissions']==0)|(df['SiteEnergyUse(kBtu)']==0)
     idx_to_del = df[mask].index
-    print("{} outliers will be dropped".format(len(idx_to_del)))
+    print("{} outliers have been dropped".format(len(idx_to_del)))
     # correct data where SiteEnergyUseWN(kBtu)=0
     wn_factor = (df['SiteEnergyUseWN(kBtu)']/df['SiteEnergyUse(kBtu)']).mean()
     mask = df['SiteEnergyUseWN(kBtu)']==0
@@ -130,18 +130,14 @@ def handle_duplicates(data):
     Return:
         DataFrame
     """
-    # check there are no missing values for the primary key OSEBuildingID.
-    n_na = data[data['OSEBuildingID'].isna()].size
-    if n_na != 0:
-        print("OSEBuildingID is not a valid primary key, please use another feature")
-        df = data
+    test = data.index.is_unique
+    if test:
+        print("There is no duplicate data")
+        df = data.copy()
     else:
-        n_dup = data.shape[0] - data['OSEBuildingID'].unique().size
-        print("There are {} duplicates".format(n_dup))
-        if n_dup !=0:
-            df = data.drop_duplicates('OSEBuildingID').set_index('OSEBuildingID')
-        else:
-            df = data.set_index('OSEBuildingID')
+        print("There are duplicates, the first occurrence has been kept")
+        idx_name = data.index.name
+        df = data.reset_index().drop_duplicates(idx_name).set_index(idx_name)
     return df
 
 def handle_outliers(data):
@@ -155,7 +151,7 @@ def handle_outliers(data):
         DataFrame
     """
     idx = data[data['Outlier'].notna()].index
-    print("{} buildings will be discarded since considered as outliers.".format(idx.size))
+    print("{} buildings have been discarded since considered as outliers.".format(idx.size))
     df = data.drop(index=idx)
     return df.drop(columns='Outlier')
 
@@ -173,7 +169,7 @@ def drop_housing(data):
     mask = (data['PrimaryPropertyType'].isin(list_housing))|\
            (data['LargestPropertyUseType']=='Multifamily Housing')
     idx_to_del = data[mask].index
-    print("{} buildings dedicated mainly to housing will be discarded".format(len(idx_to_del)))
+    print("{} buildings dedicated mainly to housing have been discarded".format(len(idx_to_del)))
     df = data.drop(index=idx_to_del)
     return df
 
@@ -224,7 +220,7 @@ def conso_outliers(data):
            (data['Electricity(kBtu)']>data['SiteEnergyUse(kBtu)'])|\
            (data['NaturalGas(kBtu)']>data['SiteEnergyUse(kBtu)'])
     idx_to_del = data[mask].index
-    print("{} buildings will be discarded due to anomalous consumptions".format(len(idx_to_del)))
+    print("{} buildings will have been discarded due to anomalous consumptions".format(len(idx_to_del)))
     df = data.drop(index=idx_to_del)
     return df
 
