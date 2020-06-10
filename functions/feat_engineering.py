@@ -110,24 +110,24 @@ def add_associative_array(data):
     Return:
         DataFrame
     """
-    missing_cat = ['Other - Restaurant/Bar',
-                   'Vocational School',
+    missing_cat = ['Vocational School',
                    'Swimming Pool',
                    'Convenience Store without Gas Station',
+                   'Enclosed Mall',
                    'Multifamily Housing',
                    'Bar/Nightclub',
                    'Food Sales',
-                   'Fast Food Restaurant',
-                   'Enclosed Mall']
-    cat_to_be_added = ['Restaurant/Bar',
-                       'Other',
+                   'Other - Technology/Science',
+                   'Fast Food Restaurant']
+    cat_to_be_added = ['Other',
                        'Other',
                        'Retail Store',
+                       'Supermarket/Grocery Store',
                        'Multifamily Housing',
                        'Restaurant/Bar',
                        'Retail Store',
-                       'Restaurant/Bar',
-                       'Supermarket/Grocery Store']
+                       'Other',
+                       'Restaurant/Bar']
     df = data.copy()
     # Drop the \n string at the end of a couple of PrimaryPropertyType modalities
     df['PrimaryPropertyType'] = df['PrimaryPropertyType'].str.replace("\n", "")
@@ -145,11 +145,14 @@ def add_associative_array(data):
     # Drop the "Mixed Use Property" category
     idx = associative_df[associative_df['PrimaryPropertyType']=="Mixed Use Property"].index
     associative_df.drop(index=idx, inplace=True)
+    # Drop duplicates
+    idx = [4, 53]
+    associative_df.drop(index=idx, inplace=True)
     # Add unreferenced memories
     extra_df = pd.DataFrame({'PropertyUseType': missing_cat,
                              'PrimaryPropertyType': cat_to_be_added})
-    associative_df = associative_df.append(extra_df, ignore_index=True)
-    return associative_df
+    associative_df = associative_df.append(extra_df, ignore_index=True, sort=True)
+    return associative_df.reset_index(drop=True)
 
 def std_use_type(data, associative_df):
     """Function to standardize Use Type categories.
@@ -266,6 +269,10 @@ def select_feature(data):
                    'BuildingType',
                    'CouncilDistrictCode',
                    'ZipCode',
+                   'SiteEUI(kBtu/sf)',
+                   'SiteEUIWN(kBtu/sf)',
+                   'SourceEUI(kBtu/sf)',
+                   'SourceEUIWN(kBtu/sf)',
                    'SteamUse(kBtu)',
                    'Electricity(kBtu)',
                    'NaturalGas(kBtu)',
