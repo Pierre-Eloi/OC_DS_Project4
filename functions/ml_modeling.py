@@ -1,8 +1,8 @@
 #! /usr/bin/env python3
 # coding: utf-8
 
-""" This module gathers all functions required for data modeling 
-with machine learning algorithms.""" 
+""" This module gathers all functions required for data modeling
+with machine learning algorithms."""
 
 import numpy as np
 import pandas as pd
@@ -16,7 +16,7 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import Perceptron
 from xgboost import XGBRegressor
 
-def linreg_hparams(X, y, estimator, elastic_net=False):
+def linreg_bparams(X, y, estimator, elastic_net=False):
     """ Automated Selection of the hyparameters for linear regression
     The selection is based on grid search.
     -----------
@@ -58,7 +58,7 @@ def linreg_hparams(X, y, estimator, elastic_net=False):
     model = grid_search.best_estimator_
     return model
 
- def compare_models(X, y, estimators):
+def compare_models(X, y, estimators):
     """ Fonction to compare the RMSE get with the
     most common Machine Learning Regressors.
     -----------
@@ -77,7 +77,7 @@ def linreg_hparams(X, y, estimator, elastic_net=False):
     scores = []
     names = []
     std_rmse = []
-    for m in models:
+    for m in estimators:
         m.fit(X, y)
         m_scores = cross_val_score(m,X, y,
                                    scoring="neg_mean_squared_error",
@@ -89,4 +89,4 @@ def linreg_hparams(X, y, estimator, elastic_net=False):
         names.append(m_names)
     # Create the DataFrame
     df = pd.DataFrame({'RMSE_mean': scores, 'RMSE_std': std_rmse}, index=names)
-    return df   
+    return df
