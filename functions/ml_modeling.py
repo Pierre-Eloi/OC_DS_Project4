@@ -6,25 +6,17 @@ with machine learning algorithms."""
 
 import numpy as np
 import pandas as pd
-from sklearn.pipeline import Pipeline
+from sklearn.feature_selection import RFE
 from sklearn.feature_selection import RFECV
 from sklearn.model_selection import RepeatedKFold
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import cross_val_score
-from sklearn.linear_model import Ridge
-from sklearn.linear_model import Lasso
-from sklearn.linear_model import ElasticNet
-from sklearn.svm import LinearSVR
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.linear_model import Perceptron
-from sklearn.neural_network import MLPRegressor
-from xgboost import XGBRegressor
+
 
 cv = RepeatedKFold(n_splits=5, n_repeats=2, random_state=42)
 
-def linreg_best_params(X, y, estimator, scoring='neg_mean_squared_error', elastic_net=False):
+def linreg_best_params(X, y, estimator, scoring='neg_root_mean_squared_error',
+                       elastic_net=False):
     """ Automated Selection of the hyparameters for linear regression
     The selection is based on grid search.
     -----------
@@ -35,7 +27,7 @@ def linreg_best_params(X, y, estimator, scoring='neg_mean_squared_error', elasti
         the target
     estimator: estimator object
         the linear model to be improved
-    scoring: str or callable, default 'neg_mean_squared_error'
+    scoring: str or callable, default 'neg_root_mean_squared_error'
         all scorer objects follow the convention that
         higher return values are better than lower return values
     elastic_net: bool, default False
@@ -63,10 +55,10 @@ def linreg_best_params(X, y, estimator, scoring='neg_mean_squared_error', elasti
         param_grid = [{'alpha': np.logspace(p_a-0.3, p_a+0.7, 10)}]
         grid_search = GridSearchCV(estimator, param_grid, cv=cv, scoring=scoring)
         grid_search.fit(X, y)
-    model = grid_search.best_estimator_
-    return model
+    return grid_search.best_estimator_
 
-def compare_models(X, y, estimators, scoring='neg_mean_squared_error', rfe=False):
+def compare_models(X, y, estimators, scoring='neg_root_mean_squared_error',
+                   rfe=False):
     """ Fonction to compare the RMSE get with the
     most common Machine Learning Regressors.
     -----------
@@ -77,7 +69,7 @@ def compare_models(X, y, estimators, scoring='neg_mean_squared_error', rfe=False
         the target
     estimators: list
         List of estimators to be compared
-    scoring: str or callable, default 'neg_mean_squared_error'
+    scoring: str or callable, default 'neg_root_mean_squared_error'
         all scorer objects follow the convention that
         higher return values are better than lower return values
     rfe: bool, default False
@@ -90,22 +82,21 @@ def compare_models(X, y, estimators, scoring='neg_mean_squared_error', rfe=False
     scores = []
     names = []
     std_rmse = []
+    if rfe:
+        l_features = []
     for m in estimators:
         if rfe:
+
             selector = RFECV(estimator=m, cv=cv, scoring=scoring)
-            selector.fit(X, y)
-            n_features = selector.n_features_
-            scores = selector.grid_scores_
-            m_scores = selector.grid_scores_[n_features-1]
-        else:
-            m_scores = cross_val_score(m, X, y,
-                                       scoring=scoring,
-                                       cv=cv)
-        m_scores = np.sqrt(-m_scores)
+            X = selector.fit_transform(X, y)
+            l_features.append(selector.n_features_)
+        m_scores = cross_val_score(m, X, y, scoring=scoring, cv=cv)
         m_names = type(m).__name__
-        scores.append(m_scores.mean())
-        std_rmse.append(m_scores.std())
+        scores.append(-m_scores.mean())
+        std_rmse.append(-m_scores.std())
         names.append(m_names)
     # Create the DataFrame
     df = pd.DataFrame({'RMSE_mean': scores, 'RMSE_std': std_rmse}, index=names)
+    if rfe:
+        df['N_Features'] = l_features
     return df
