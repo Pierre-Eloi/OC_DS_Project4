@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 # coding: utf-8
 
-""" This module gathers all functions required for feature engineering.""" 
+""" This module gathers all functions required for feature engineering."""
 
 import numpy as np
 import pandas as pd
@@ -83,7 +83,8 @@ def add_conso_ratio(data):
     return df
 
 def add_gfa_ratio(data):
-    """Function to add the proportion of the area assigned to Buildings and the one assigned to Parkings.
+    """Function to add the proportion of the area assigned to Buildings
+    and the one assigned to Parkings.
     -----------
     Parameters:
     data: DataFrame
@@ -161,7 +162,7 @@ def std_use_type(data, associative_df):
     data: DataFrame
         the pandas object holding data
     associative_df: DataFrame
-        the pandas object holding the associative array   
+        the pandas object holding the associative array
     -----------
     Return:
         DataFrame
@@ -205,7 +206,7 @@ def encoding_use_type(data, associative_df):
     data: DataFrame
         the pandas object holding data
     associative_df: DataFrame
-        the pandas object holding the associative array     
+        the pandas object holding the associative array
     -----------
     Return:
         DataFrame
@@ -273,6 +274,7 @@ def select_feature(data):
                    'SiteEUIWN(kBtu/sf)',
                    'SourceEUI(kBtu/sf)',
                    'SourceEUIWN(kBtu/sf)',
+                   'GHGEmissionsIntensity',
                    'SteamUse(kBtu)',
                    'Electricity(kBtu)',
                    'NaturalGas(kBtu)',
