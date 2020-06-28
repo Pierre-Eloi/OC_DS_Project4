@@ -99,7 +99,7 @@ def compare_models(X, y, estimators, rfe=False):
     names = []
     std_rmse = []
     std_r2 = []
-    scoring = {'neg_rmse': 'neg_root_mean_squared_error',
+    scoring = {'neg_mse': 'neg_mean_squared_error',
                'r2': 'r2'}
     # Train models
     if rfe:
@@ -107,19 +107,20 @@ def compare_models(X, y, estimators, rfe=False):
         list_masks = []
     for m in estimators:
         if rfe:
-            selector = RFECV(estimator=m, cv=cv, scoring=scoring['neg_rmse'])
+            selector = RFECV(estimator=m, cv=cv, scoring=scoring['neg_mse'],
+                             n_jobs=-1)
             X_rfe = selector.fit_transform(X, y)
             list_features.append(selector.n_features_)
             list_masks.append(selector.support_)
             m_scores = cross_validate(m, X_rfe, y, scoring=scoring, cv=cv,
-                                      return_train_score=True)
+                                      return_train_score=True, n_jobs=-1)
         else:
             m_scores = cross_validate(m, X, y, scoring=scoring, cv=cv,
-                                      return_train_score=True)
+                                      return_train_score=True, n_jobs=-1)
         m_names = type(m).__name__
-        scores_rmse.append(-m_scores['test_neg_rmse'].mean())
+        scores_rmse.append(np.sqrt(-m_scores['test_neg_mse']).mean())
         scores_r2.append(m_scores['test_r2'].mean())
-        std_rmse.append(-m_scores['test_neg_rmse'].std())
+        std_rmse.append(np.sqrt(-m_scores['test_neg_mse']).std())
         std_r2.append(m_scores['test_r2'].std())
         names.append(m_names)
     # Create the DataFrame
@@ -132,7 +133,7 @@ def compare_models(X, y, estimators, rfe=False):
         df['mask_Features'] = list_masks
     return df
 
-def lin_reg_best_params(X, y, estimator, scoring='neg_root_mean_squared_error',
+def lin_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error',
                        elastic_net=False):
     """ Automated Selection of the hyparameters for linear regression
     The selection is based on grid search.
@@ -144,7 +145,7 @@ def lin_reg_best_params(X, y, estimator, scoring='neg_root_mean_squared_error',
         the target
     estimator: estimator object
         the linear model to be improved
-    scoring: str or callable, default 'neg_root_mean_squared_error'
+    scoring: str or callable, default 'neg_mean_squared_error'
         all scorer objects follow the convention that
         higher return values are better than lower return values
     elastic_net: bool, default False
@@ -154,23 +155,43 @@ def lin_reg_best_params(X, y, estimator, scoring='neg_root_mean_squared_error',
         estimator
     """
     if elastic_net:
+        # First grid search
         param_grid = [{'alpha': np.logspace(-1, 3, 5),
                        'l1_ratio': np.linspace(0.1, 0.9, 9)}]
-        grid_search = GridSearchCV(estimator, param_grid, cv=cv, scoring=scoring)
+        grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                                   scoring=scoring, n_jobs=-1)
         grid_search.fit(X, y)
-        p_a = np.log10(grid_search.best_params_['alpha'])
+        alpha = np.log10(grid_search.best_params_['alpha'])
         estimator = grid_search.best_estimator_
-        param_grid = [{'alpha': np.logspace(p_a-0.5, p_a+0.5, 11)}]
-        grid_search = GridSearchCV(estimator, param_grid, cv=cv, scoring=scoring)
+        # Second grid search
+        param_grid = [{'alpha': np.logspace(alpha-0.4, alpha+0.6, 6)}]
+        grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                                   scoring=scoring,  n_jobs=-1)
         grid_search.fit(X, y)
+        alpha= np.log10(grid_search.best_params_['alpha'])
+        # Third grid search
+        param_grid = [{'alpha': np.logspace(alpha-0.1, alpha+0.1, 3)}]
+        grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                                   scoring=scoring,  n_jobs=-1)
+        grid_search.fit(X, y)
+
     else:
+        # First grid search
         param_grid = [{'alpha': np.logspace(-1, 3, 5)}]
         grid_search = GridSearchCV(estimator, param_grid, cv=cv,
-                                   scoring=scoring)
+                                   scoring=scoring, n_jobs=-1)
         grid_search.fit(X, y)
-        p_a = np.log10(grid_search.best_params_['alpha'])
-        param_grid = [{'alpha': np.logspace(p_a-0.5, p_a+0.5, 11)}]
-        grid_search = GridSearchCV(estimator, param_grid, cv=cv, scoring=scoring)
+        alpha = np.log10(grid_search.best_params_['alpha'])
+        # Second grid search
+        param_grid = [{'alpha': np.logspace(alpha-0.4, alpha+0.6, 6)}]
+        grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                                   scoring=scoring,  n_jobs=-1)
+        grid_search.fit(X, y)
+        alpha= np.log10(grid_search.best_params_['alpha'])
+        # Third grid search
+        param_grid = [{'alpha': np.logspace(alpha-0.1, alpha+0.1, 3)}]
+        grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                                   scoring=scoring,  n_jobs=-1)
         grid_search.fit(X, y)
     return grid_search.best_estimator_
 
@@ -179,7 +200,7 @@ from sklearn.model_selection import GridSearchCV
 
 cv = RepeatedKFold(n_splits=5, n_repeats=2, random_state=42)
 
-def svm_reg_best_params(X, y, estimator, scoring='neg_root_mean_squared_error',
+def svm_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error',
                        kernel=False):
     """ Automated Selection of the hyparameters for SVM regression
     The selection is based on grid search.
@@ -191,7 +212,7 @@ def svm_reg_best_params(X, y, estimator, scoring='neg_root_mean_squared_error',
         the target
     estimator: estimator object
         the SVM model to be improved
-    scoring: str or callable, default 'neg_root_mean_squared_error'
+    scoring: str or callable, default 'neg_mean_squared_error'
         all scorer objects follow the convention that
         higher return values are better than lower return values
     kernel: bool, default False
@@ -205,26 +226,37 @@ def svm_reg_best_params(X, y, estimator, scoring='neg_root_mean_squared_error',
     if kernel:
         estimator = estimator.set_params(kernel='rbf')
         # Hyperparameter initialization
-        param_dict = {'C': np.log10(1),
-                      'gamma': round(np.log10(1/(n_features*X.var())), 0),
-                      'epsilon': round(np.log10(y.std()*0.2), 0)}
+        c = np.log10(1)
+        gamma = round(np.log10(1/(n_features*X.var())), 0)
+        epsilon = round(np.log10(y.std()*0.2), 0)
         # Get the right order of magnitude for each hyperparameter
-        param_grid = [{'C': np.logspace(param_dict['C']-2, param_dict['C']+2, 5),
-                       'gamma': np.logspace(param_dict['gamma']-1, param_dict['gamma']+1, 3),
-                       'epsilon': np.logspace(param_dict['epsilon']-1, param_dict['epsilon']+1, 3)}]
-        grid_search = GridSearchCV(estimator, param_grid,
-                                   cv=cv, scoring=scoring)
+        param_grid = [{'C': np.logspace(c-2, c+2, 5),
+                       'gamma': np.logspace(gamma-1, gamma+1, 3),
+                       'epsilon': np.logspace(epsilon-1, epsilon+1, 3)}]
+        grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                                   scoring=scoring, n_jobs=-1)
         grid_search.fit(X, y)
-        estimator = grid_search.best_estimator_
-        # Hyperparameter finetuning
-        for p in param_dict:
-            param_dict[p] = np.log10(grid_search.best_params_[p])
-            param_grid = [{p: np.logspace(param_dict[p]-0.5, param_dict[p]+0.5, 11)}]
-            grid_search2 = GridSearchCV(estimator, param_grid,
-                                        cv=cv, scoring=scoring)
-            grid_search2.fit(X, y)
-            estimator = grid_search2.best_estimator_
-    else:
+        # Second grid search
+        c = np.log10(grid_search.best_params_['C'])
+        gamma = np.log10(grid_search.best_params_['gamma'])
+        epsilon = np.log10(grid_search.best_params_['epsilon'])
+        param_grid = [{'C': np.logspace(c-0.4, c+0.6, 6),
+                       'gamma': np.logspace(gamma-0.4, gamma+0.6, 6),
+                       'epsilon': np.logspace(epsilon-0.4, epsilon+0.6, 6)}]
+        grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                                   scoring=scoring, n_jobs=-1)
+        grid_search.fit(X, y)
+        # Third grid search to finetune hyperparameters
+        c = np.log10(grid_search.best_params_['C'])
+        gamma = np.log10(grid_search.best_params_['gamma'])
+        epsilon = np.log10(grid_search.best_params_['epsilon'])
+        param_grid = [{'C': np.logspace(c-0.1, c+0.1, 3),
+                       'gamma': np.logspace(gamma-0.1, gamma+0.1, 3),
+                       'epsilon': np.logspace(epsilon-0.1, epsilon+0.1, 3)}]
+        grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                                   scoring=scoring, n_jobs=-1)
+        grid_search.fit(X, y)
+    else: # if linear SVM
         if n_samples > n_features:
             dual = False
         else:
@@ -232,24 +264,32 @@ def svm_reg_best_params(X, y, estimator, scoring='neg_root_mean_squared_error',
         estimator = estimator.set_params(loss='squared_epsilon_insensitive',
                                          dual=dual)
         # Hyperparameter initialization
-        param_dict = {'C': np.log10(1),
-                      'epsilon': round(np.log10(y.std()*0.2), 0)}
+        c = np.log10(1)
+        gamma = round(np.log10(1/(n_features*X.var())), 0)
+        epsilon = round(np.log10(y.std()*0.2), 0)
         # Get the right order of magnitude for each hyperparameter
-        param_grid = [{'C': np.logspace(param_dict['C']-2, param_dict['C']+2, 5),
-                       'epsilon': np.logspace(param_dict['epsilon']-1, param_dict['epsilon']+1, 3)}]
-        grid_search = GridSearchCV(estimator, param_grid,
-                                   cv=cv, scoring=scoring)
+        param_grid = [{'C': np.logspace(c-2, c+2, 5),
+                       'epsilon': np.logspace(epsilon-1, epsilon+1, 3)}]
+        grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                                   scoring=scoring, n_jobs=-1)
         grid_search.fit(X, y)
-        estimator = grid_search.best_estimator_
-        # Hyperparameter finetuning
-        for p in param_dict:
-            param_dict[p] = np.log10(grid_search.best_params_[p])
-            param_grid = [{p: np.logspace(param_dict[p]-0.5, param_dict[p]+0.5, 11)}]
-            grid_search2 = GridSearchCV(estimator, param_grid,
-                                       cv=cv, scoring=scoring)
-            grid_search2.fit(X, y)
-            estimator = grid_search2.best_estimator_
-    return estimator
+        # Second grid search
+        c = np.log10(grid_search.best_params_['C'])
+        epsilon = np.log10(grid_search.best_params_['epsilon'])
+        param_grid = [{'C': np.logspace(c-0.4, c+0.6, 6),
+                       'epsilon': np.logspace(epsilon-0.4, epsilon+0.6, 6)}]
+        grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                                   scoring=scoring, n_jobs=-1)
+        grid_search.fit(X, y)
+        # Third grid search to finetune hyperparameters
+        c = np.log10(grid_search.best_params_['C'])
+        epsilon = np.log10(grid_search.best_params_['epsilon'])
+        param_grid = [{'C': np.logspace(c-0.1, c+0.1, 3),
+                       'epsilon': np.logspace(epsilon-0.1, epsilon+0.1, 3)}]
+        grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                                   scoring=scoring, n_jobs=-1)
+        grid_search.fit(X, y)
+    return grid_search.best_estimator_
 
 def knn_reg_best_params(X, y, estimator, scoring='neg_root_mean_squared_error'):
     """ Automated Selection of the hyparameters for k-NN regression
@@ -270,10 +310,12 @@ def knn_reg_best_params(X, y, estimator, scoring='neg_root_mean_squared_error'):
         estimator
     """
     param_grid = [{'n_neighbors': np.linspace(2, 20, 10, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, cv=cv, scoring=scoring)
+    grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                               scoring=scoring, n_jobs=-1)
     grid_search.fit(X, y)
     best_n = grid_search.best_params_['n_neighbors']
     param_grid = [{'n_neighbors': np.linspace(best_n-1, best_n+1, 3, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, cv=cv, scoring=scoring)
+    grid_search = GridSearchCV(estimator, param_grid, cv=cv,
+                               scoring=scoring, n_jobs=-1)
     grid_search.fit(X, y)
     return grid_search.best_estimator_
