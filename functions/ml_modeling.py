@@ -6,7 +6,9 @@ with machine learning algorithms."""
 
 import numpy as np
 import pandas as pd
+from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import RFECV
+from sklearn.feature_selection import SelectFromModel
 from sklearn.model_selection import RepeatedKFold
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import RandomizedSearchCV
@@ -133,6 +135,55 @@ def compare_models(X, y, estimators, rfe=False):
         df['N_Features'] = list_features
         df['mask_Features'] = list_masks
     return df
+
+def select_features(X, y, estimator, scoring='neg_mean_squared_error'):
+    """ Automated Selection of the most significant features.
+    The importance weight of each feature is computed for a Random Forest Model.
+    All features with an importance weight above a given threshold are selected.
+    A grid search is used to find the optimum threshold.
+    -----------
+    Parameters:
+    X: Array
+        the array object holding data
+    y: Array
+        the target
+    estimator: estimator object
+        Must be a Random Forest model
+    scoring: str or callable, default 'neg_mean_squared_error'
+        all scorer objects follow the convention that
+        higher return values are better than lower return values
+    -----------
+    Return:
+        the mask of the features selected
+    """
+    n_features = X.shape[1]
+    threshold = int(np.log10(1 / n_features))
+    threshold_min = int(np.log10(estimator.fit(X, y).feature_importances_.min()))-1
+    n_threshold = threshold - threshold_min + 1
+    selector = SelectFromModel(estimator=estimator)
+    pipeline = Pipeline([('selector', selector),
+                         ('model', estimator)])
+    # Get the right order of magnitude
+    param_grid = [{'selector__threshold': np.logspace(threshold_min, threshold, n_threshold)}]
+    grid_search = GridSearchCV(pipeline, param_grid, cv=cv,
+                               scoring=scoring, n_jobs=-1)
+    grid_search.fit(X, y)
+    threshold = np.log10(grid_search.best_params_['selector__threshold'])
+    if threshold==threshold_min:
+        return grid_search.best_estimator_['selector'].get_support()
+    else:
+        # Second grid search
+        param_grid = [{'selector__threshold': np.logspace(threshold-0.3, threshold+0.7, 5)}]
+        grid_search = GridSearchCV(pipeline, param_grid, cv=cv,
+                                   scoring=scoring, n_jobs=-1)
+        grid_search.fit(X, y)
+        # Third grid search to finetune hyperparameters
+        threshold = np.log10(grid_search.best_params_['selector__threshold'])
+        param_grid = [{'selector__threshold': np.logspace(threshold-0.1, threshold+0.1, 3)}]
+        grid_search = GridSearchCV(pipeline, param_grid, cv=cv,
+                                   scoring=scoring, n_jobs=-1)
+        grid_search.fit(X, y)
+        return grid_search.best_estimator_['selector'].get_support()
 
 def lin_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error',
                        elastic_net=False):
