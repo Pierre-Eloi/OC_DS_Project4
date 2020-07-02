@@ -574,7 +574,7 @@ def mlp_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
     Return:
         estimator
     """
-    estimator = estimator.set_params(max_iter=300,
+    estimator = estimator.set_params(max_iter=500,
                                      early_stopping=True,
                                      random_state=42)
     # 1) Fine-tune 'activation' and 'solver' hyperparameters
