@@ -10,7 +10,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import SelectFromModel
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import RandomizedSearchCV
-from sklearn.model_selection import cross_validate
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import RepeatedKFold
 from sklearn.model_selection import cross_val_score
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
@@ -24,6 +25,7 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.neural_network import MLPRegressor
 from xgboost import XGBRegressor
 
+cv = KFold(n_splits=5, n_repeats=2, random_state=42)
 
 def get_models(X, y, best_hparams=False):
     """Get a list of the most common models to evaluate.
@@ -101,7 +103,7 @@ def compare_models(X, y, estimators):
                'r2': 'r2'}
     # Train models
     for m in estimators:
-        m_scores = cross_validate(m, X, y, scoring=scoring, n_jobs=-1)
+        m_scores = cross_validate(m, X, y, scoring=scoring, cv=cv, n_jobs=-1)
         m_names = type(m).__name__
         scores_rmse.append(np.sqrt(-m_scores['test_neg_mse']).mean())
         scores_r2.append(m_scores['test_r2'].mean())
@@ -141,19 +143,17 @@ def select_features(X, y, estimator, scoring='neg_mean_squared_error'):
     pipeline = Pipeline([('selector', selector),
                          ('model', estimator)])
     # First search with a randomized one
-    n_iter = min([20, int(n_features/5)])
     param_grid = [{'selector__threshold': [thresholds[i] for i in range(0, n_features, 5)]}]
-    rand_search = RandomizedSearchCV(pipeline, param_grid, n_iter=n_iter,
-                                     scoring=scoring, random_state=42, n_jobs=-1)
-    rand_search.fit(X, y)
+    grid_search = GridSearchCV(pipeline, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
+    grid_search.fit(X, y)
     # Second search with a grid one
-    threshold = rand_search.best_params_['selector__threshold']
+    threshold = grid_search.best_params_['selector__threshold']
     idx = np.where(thresholds==threshold)[0][0]
     if idx==0:
         param_grid = [{'selector__threshold': [thresholds[i] for i in range(idx, idx+4)]}]
     else:
         param_grid = [{'selector__threshold': [thresholds[i] for i in range(idx-4, idx+4)]}]
-    grid_search = GridSearchCV(pipeline, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(pipeline, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     return grid_search.best_estimator_['selector'].get_support()
 
@@ -182,34 +182,34 @@ def lin_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error',
         # First grid search
         param_grid = [{'alpha': np.logspace(-1, 3, 5),
                        'l1_ratio': np.linspace(0.05, 0.95, 19)}]
-        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
         grid_search.fit(X, y)
         alpha = grid_search.best_params_['alpha']
         estimator = grid_search.best_estimator_
         # Second grid search
         param_grid = [{'alpha': np.linspace(alpha*0.5, alpha*5, 10)}]
-        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
         grid_search.fit(X, y)
         # Third grid search
         alpha= grid_search.best_params_['alpha']
         param_grid = [{'alpha': np.linspace(alpha*5/6, alpha*7/6, 3)}]
-        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
         grid_search.fit(X, y)
 
     else:
         # First grid search
         param_grid = [{'alpha': np.logspace(-1, 3, 5)}]
-        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
         grid_search.fit(X, y)
         alpha = grid_search.best_params_['alpha']
         # Second grid search
         param_grid = [{'alpha': np.linspace(alpha*0.5, alpha*5, 10)}]
-        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
         grid_search.fit(X, y)
         # Third grid search
         alpha= grid_search.best_params_['alpha']
         param_grid = [{'alpha': np.linspace(alpha*5/6, alpha*7/6, 3)}]
-        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
         grid_search.fit(X, y)
     return grid_search.best_estimator_
 
@@ -246,7 +246,7 @@ def svm_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error',
         param_grid = [{'C': np.logspace(c-2, c+2, 5),
                        'gamma': np.logspace(gamma-1, gamma+1, 3),
                        'epsilon': np.logspace(epsilon-1, epsilon+1, 3)}]
-        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
         grid_search.fit(X, y)
         # Second search with a randomized search
         c = grid_search.best_params_['C']
@@ -255,7 +255,7 @@ def svm_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error',
         param_grid = [{'C': np.linspace(c, c*5, 10),
                        'gamma': np.linspace(gamma, gamma*5, 10),
                        'epsilon': np.linspace(epsilon, epsilon*5, 10)}]
-        rand_search = RandomizedSearchCV(estimator, param_grid, n_iter=100,
+        rand_search = RandomizedSearchCV(estimator, param_grid, n_iter=100, cv=cv,
                                          scoring=scoring, n_jobs=-1, random_state=42)
         rand_search.fit(X, y)
         # Third search with a grid search
@@ -265,7 +265,7 @@ def svm_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error',
         param_grid = [{'C': np.linspace(c*5/6, c*7/6, 3),
                        'gamma': np.linspace(gamma*5/6, gamma*7/6, 3),
                        'epsilon': np.linspace(epsilon*7/6, epsilon*7/6, 3)}]
-        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
         grid_search.fit(X, y)
     else: # if linear SVM
         if n_samples > n_features:
@@ -281,21 +281,21 @@ def svm_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error',
         # First grid search to Get the right order of magnitude for each hyperparameter
         param_grid = [{'C': np.logspace(c-2, c+2, 5),
                        'epsilon': np.logspace(epsilon-1, epsilon+1, 3)}]
-        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
         grid_search.fit(X, y)
         # Second grid search
         c = grid_search.best_params_['C']
         epsilon = grid_search.best_params_['epsilon']
         param_grid = [{'C': np.linspace(c/2, c*5, 10),
                        'epsilon': np.linspace(epsilon/2, epsilon*5, 10)}]
-        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
         grid_search.fit(X, y)
         # Third grid search
         c = grid_search.best_params_['C']
         epsilon = grid_search.best_params_['epsilon']
         param_grid = [{'C': np.linspace(c*5/6, c*7/6, 3),
                        'epsilon': np.linspace(epsilon*5/6, epsilon*7/6, 3)}]
-        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+        grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
         grid_search.fit(X, y)
     return grid_search.best_estimator_
 
@@ -318,11 +318,11 @@ def knn_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
         estimator
     """
     param_grid = [{'n_neighbors': np.linspace(2, 20, 10, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     best_n = grid_search.best_params_['n_neighbors']
     param_grid = [{'n_neighbors': np.linspace(best_n-1, best_n+1, 3, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     return grid_search.best_estimator_
 
@@ -352,7 +352,7 @@ def tree_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
                    'max_leaf_nodes': np.logspace(1, int(np.log10(n_samples))-1,
                                                  int(np.log10(n_samples))-1,
                                                  dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     estimator = grid_search.best_estimator_
     # Second grid search
@@ -364,7 +364,7 @@ def tree_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
                    'max_leaf_nodes': np.linspace(max_leaf/2,
                                                  max_leaf*5,
                                                  10, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     # Third grid search
     min_samples_split = grid_search.best_params_['min_samples_split']
@@ -375,7 +375,7 @@ def tree_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
                    'max_leaf_nodes': np.linspace(max_leaf*5/6,
                                                  max_leaf*7/6,
                                                  3, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     return grid_search.best_estimator_
 
@@ -402,17 +402,17 @@ def forest_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
                                      n_jobs=-1)
     # First search with a grid one
     param_grid = [{'max_features': np.linspace(0.2, 0.8, 4)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     # Second search with a grid one
     max_features = grid_search.best_params_['max_features']
     param_grid = [{'max_features': np.linspace(max_features-0.1, max_features+0.1, 5)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     # Second search with a grid one
     max_features = grid_search.best_params_['max_features']
     param_grid = [{'max_features': np.linspace(max_features-0.025, max_features+0.025, 3)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     return grid_search.best_estimator_
 
@@ -445,7 +445,7 @@ def gboost_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
     param_grid = [{'loss': ['ls', 'lad', 'huber'],
                    'learning_rate': [0.01, 0.1],
                    'max_depth': np.linspace(2, 10, 5, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     estimator=grid_search.best_estimator_
     # Second grid search for fine-tuning
@@ -455,7 +455,7 @@ def gboost_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
                                                 learning_rate*5, 10),
                    'max_depth': np.linspace(max_depth-1,
                                             max_depth+1, 3, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     estimator=grid_search.best_estimator_
     # 2) Using early stopping to find the best 'n_estimators'
@@ -463,7 +463,7 @@ def gboost_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
     error_going_up = 0
     for n in range (50, 150):
         estimator.n_estimators = n
-        val_error = -cross_val_score(estimator, X, y,
+        val_error = -cross_val_score(estimator, X, y, cv=cv,
                                     scoring=scoring, n_jobs=-1).mean()
         if n == 50:
             estimator.warm_start = True
@@ -478,7 +478,7 @@ def gboost_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
     estimator.n_estimators = n - 5
     # 3) Fine-tune the 'subsample' hyperparameter
     param_grid = [{'subsample': np.linspace(0.6, 1, 5)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     return grid_search.best_estimator_
 
@@ -511,7 +511,7 @@ def xgboost_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
     # 1) Fine-tune 'learning_rate' and 'max_depth' hyperparmeters
     param_grid = [{'learning_rate': [0.01, 0.1],
                    'max_depth': np.linspace(2, 10, 5, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     estimator=grid_search.best_estimator_
     # Second grid search for fine-tuning
@@ -521,7 +521,7 @@ def xgboost_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
                                                 learning_rate*5, 10),
                    'max_depth': np.linspace(max_depth+1,max_depth-1,
                                             3, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     estimator=grid_search.best_estimator_
     # 2) Using early stopping to find the best 'n_estimators'
@@ -529,7 +529,7 @@ def xgboost_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
     error_going_up = 0
     for n in range (50, 150):
         estimator.n_estimators = n
-        val_error = -cross_val_score(estimator, X, y,
+        val_error = -cross_val_score(estimator, X, y, cv=cv,
                                     scoring=scoring, n_jobs=-1).mean()
         if n == 50:
             estimator.warm_start = True
@@ -545,7 +545,7 @@ def xgboost_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
     # 3) Fine-tune the 'subsample' hyperparameter
     param_grid = [{'subsample': np.linspace(0.8, 1, 3),
                    'colsample_bytree': np.linspace(0.6, 1, 5)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     return grid_search.best_estimator_
 
@@ -581,14 +581,14 @@ def mlp_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
     param_grid = [{'activation': ['logistic', 'tanh', 'relu'],
                    'solver': ['sgd', 'adam'],
                    'shuffle': [True, False]}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     estimator=grid_search.best_estimator_
     # 2) Fine-tune the L2 penalty and the learning rate hyperparameters
     param_grid = [{'alpha': np.logspace(-5, -1, 5),
                    'learning_rate_init': np.logspace(-3, -1, 3),
                    'learning_rate': ['constant', 'invscaling', 'adaptive']}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     estimator=grid_search.best_estimator_
     # Second Grid Search
@@ -601,20 +601,20 @@ def mlp_reg_best_params(X, y, estimator, scoring='neg_mean_squared_error'):
     estimator=grid_search.best_estimator_
     # 3) Get the optimum number of hidden layers
     param_grid = [{'hidden_layer_sizes': np.logspace(0, 2, 3, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     # Second Grid Search
     hidden_layer_sizes = grid_search.best_params_['hidden_layer_sizes'] 
     param_grid = [{'hidden_layer_sizes': np.linspace(hidden_layer_sizes/2,
                                                      hidden_layer_sizes*5,
                                                      10, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     # Third Grid Search
     hidden_layer_sizes = grid_search.best_params_['hidden_layer_sizes'] 
     param_grid = [{'hidden_layer_sizes': np.linspace(hidden_layer_sizes*5/6,
                                                      hidden_layer_sizes*7/6,
                                                      3, dtype=int)}]
-    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, n_jobs=-1)
+    grid_search = GridSearchCV(estimator, param_grid, scoring=scoring, cv=cv, n_jobs=-1)
     grid_search.fit(X, y)
     return grid_search.best_estimator_
