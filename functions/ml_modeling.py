@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import SelectFromModel
-from sklearn.model_selection import RepeatedKFold
+from sklearn.model_selection import KFold
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import cross_val_score
@@ -25,7 +25,7 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.neural_network import MLPRegressor
 from xgboost import XGBRegressor
 
-cv = RepeatedKFold(n_splits=5, n_repeats=2, random_state=42)
+cv = KFold(n_splits=5, shuffle=True, random_state=42)
 
 def get_models(X, y, best_hparams=False):
     """Get a list of the most common models to evaluate.
