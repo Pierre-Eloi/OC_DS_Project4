@@ -17,7 +17,7 @@ def add_target_log(data):
     -----------
     Return:
         DataFrame
-        a list with all target
+        a list with all targets
     """
     targets = ['TotalGHGEmissions',
                'SiteEnergyUse(kBtu)',
@@ -299,6 +299,8 @@ def sort_columns(data, targets):
     Parameters:
     data: DataFrame
         the pandas object holding data
+    target: list
+        A list object gathering the name of all targets
     -----------
     Return:
         DataFrame
@@ -315,6 +317,11 @@ def scale_data(data, n, targets):
     Parameters:
     data: DataFrame
         the pandas object holding data
+    n: int
+        number of the neiborhood modalities
+
+    target: list
+        A list object gathering the name of all targets
     -----------
     Return:
         DataFrame
