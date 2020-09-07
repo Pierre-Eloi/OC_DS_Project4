@@ -1,8 +1,0 @@
-env/*
-.ipynb_checkpoints/*
-.vscode/*
-data/*
-charts/*
-functions/__pycache__/*
-Project4_PER.pptx
-.DS_Store
