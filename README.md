@@ -18,6 +18,6 @@ Toutes les fonctions créées afin de mener à bien le projet ont été regroup�
 - les fonctions de traitement des variables (là encore un pipeline a été créé) dans *feat_engineering.py*
 - les fonctions permettant d'optimiser les différents hyperparamètres de chaque modèle dans *ml_modeling.py*
 
-Durant l'étude, les principaux modèles de regression disponibles en machine learning ont été testés. Le tableau ci-dessous regroupe les résultats pour la modélisation des émissions en CO2.
+Durant l'étude, les principaux modèles de regression disponibles en machine learning ont été testés. Le tableau ci-dessous regroupe les résultats pour la modélisation de la consommation électrique totale.
 
-![](/charts)
+![total consumption model results](/charts/models_total_consumption.png "Total consumption modeling results")
